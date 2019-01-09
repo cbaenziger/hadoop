@@ -21,10 +21,15 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Values.CLOSE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_WEBHDFS_REST_CSRF_ENABLED_DEFAULT;
+import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_WEBHDFS_REST_CSRF_ENABLED_KEY;
 
+import java.util.Map;
+import javax.servlet.ServletException;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -32,9 +37,14 @@ import io.netty.util.ReferenceCountUtil;
 
 import org.slf4j.Logger;
 
+import com.sun.tools.classfile.Dependency.Filter;
+
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.security.http.RestCsrfPreventionFilter;
 import org.apache.hadoop.security.http.RestCsrfPreventionFilter.HttpInteraction;
+import io.netty.channel.ChannelHandler.Sharable;
+
 
 /**
  * Netty handler that integrates with the {@link RestCsrfPreventionFilter}.  If
@@ -43,6 +53,7 @@ import org.apache.hadoop.security.http.RestCsrfPreventionFilter.HttpInteraction;
  * handler drops the request and immediately sends an HTTP 400 response.
  */
 @InterfaceAudience.Private
+@Sharable
 final class RestCsrfPreventionFilterHandler
     extends SimpleChannelInboundHandler<HttpRequest> {
 
@@ -133,5 +144,33 @@ final class RestCsrfPreventionFilterHandler
       HttpResponseStatus status = new HttpResponseStatus(code, message);
       sendResponseAndClose(ctx, new DefaultHttpResponse(HTTP_1_1, status));
     }
+  }
+
+  /**
+   * Creates a {@link RestCsrfPreventionFilter} for the {@DatanodeHttpServer}.
+   * This method takes care of configuration and implementing just enough of the
+   * servlet API and related interfaces so that the DataNode can get a fully initialized
+   * instance of the filter.
+   *
+   * @param conf configuration to read
+   * @return initialized filter, or null if CSRF protection not enabled
+   */
+  public static RestCsrfPreventionFilter initializeState(
+      Configuration conf) {
+    if (!conf.getBoolean(DFS_WEBHDFS_REST_CSRF_ENABLED_KEY,
+        DFS_WEBHDFS_REST_CSRF_ENABLED_DEFAULT)) {
+      return null;
+    }
+    String restCsrfClassName = RestCsrfPreventionFilter.class.getName();
+    Map<String, String> restCsrfParams = RestCsrfPreventionFilter
+        .getFilterParams(conf, "dfs.webhdfs.rest-csrf.");
+    RestCsrfPreventionFilter filter = new RestCsrfPreventionFilter();
+    try {
+      filter.init(new DatanodeHttpServer.MapBasedFilterConfig(restCsrfClassName, restCsrfParams));
+    } catch (ServletException e) {
+      throw new IllegalStateException(
+          "Failed to initialize RestCsrfPreventionFilter.", e);
+    }
+    return(filter);
   }
 }
