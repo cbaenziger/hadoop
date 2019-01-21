@@ -251,6 +251,7 @@ public class DatanodeHttpServer implements Closeable {
 
     ChannelHandler[] handlers = new ChannelHandler[classes.length];
     for(int i = 0; i < classes.length; i++) {
+      LOG.debug("Loading filter handler " + classes[i].getName());
       handlers[i] = (ChannelHandler)ReflectionUtils.newInstance(
           classes[i], conf);
     }

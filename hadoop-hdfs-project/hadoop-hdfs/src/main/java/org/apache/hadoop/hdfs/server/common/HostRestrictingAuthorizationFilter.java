@@ -28,19 +28,23 @@ import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.web.AuthFilter;
-import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
+import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
+import org.apache.hadoop.security.token.Token;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.lang.Iterable;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
-import java.lang.Iterable;
+import java.util.function.Predicate;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Optional;
-import java.util.function.Predicate;
 import org.apache.commons.net.util.SubnetUtils;
 import org.apache.commons.io.FilenameUtils;
 
@@ -99,6 +103,8 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     user = (user == null ? "" : user);
     path = (path == null ? "" : path);
 
+    LOG.trace("Got user: {}, remoteIp: {}, path: {}", user, remoteIp, path);
+
     ArrayList<Rule> userRules = RULEMAP.get(user);
     ArrayList<Rule> anyRules = RULEMAP.get("*");
     if(anyRules != null) {
@@ -108,8 +114,6 @@ public class HostRestrictingAuthorizationFilter implements Filter {
         userRules = anyRules;
       }
     }
-
-    LOG.trace("Got user: {}, remoteIp: {}, path: {}", user, remoteIp, path);
 
     // isInRange fails for null/blank IPs, require an IP to approve
     if(remoteIp == null) {
@@ -123,7 +127,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
                   rule.getSubnet() != null ? rule.getSubnet().getCidrSignature() : null, rule.getPath());
         try {
           if((rule.getSubnet() == null || rule.getSubnet().isInRange(remoteIp))
-              && FilenameUtils.directoryContains(WebHdfsFileSystem.PATH_PREFIX + rule.getPath(), path)) {
+              && FilenameUtils.directoryContains(rule.getPath(), path)) {
             LOG.debug("Found matching rule, subnet: {}, path: {}; returned true",
                       rule.getSubnet() != null ? rule.getSubnet().getCidrSignature() : null, rule.getPath());
             return true;
@@ -156,7 +160,12 @@ public class HostRestrictingAuthorizationFilter implements Filter {
       RULEMAP = new HashMap<String, ArrayList<Rule>>(rules.length);
       for(String line : rules) {
         String[] parts = line.split(",", 3);
-        LOG.debug("Loaded rule: user: " + parts[0] + " network/bits: " + parts[1] + " path: " + parts[2]);
+        // ensure we got a valid configuration record
+        if (parts.length != 3) {
+          LOG.debug("Failed to parse rule entry: {}", line);
+          continue;
+        }
+        LOG.debug("Loaded rule: user: {}, network/bits: {} path: {}", parts[0], parts[1], parts[2]);
         String globPattern = parts[2];
         // Map is {"user": [subnet, path]}
         Rule rule = null;
@@ -176,26 +185,66 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     }
   }
 
+  /**
+   * doFilter() is a shim to create an HttpInteraction object and pass that to
+   * the actual processing logic
+   */
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
       throws IOException, ServletException {
     final HttpServletRequest httpRequest = (HttpServletRequest) request;
     HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-    final String address = request.getRemoteAddr();
-    final String user = httpRequest.getRemoteUser();
-    final String uri = httpRequest.getRequestURI();
-    final Optional<String> query = Optional.ofNullable(httpRequest.getQueryString());
+    handleInteraction(new ServletFilterHttpInteraction(httpRequest, httpResponse, filterChain));
+  }
 
-    if(!response.isCommitted() && "GET".equalsIgnoreCase(httpRequest.getMethod())) {
-      boolean readQuery = query.map((q) -> Arrays.stream(q.trim().split("&")).anyMatch(restrictedOperations)).orElse(true);
-      if (readQuery && !(matchRule("*", address, uri) || matchRule(user, address, uri))) {
-        httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN,
-          "WebHDFS is configured write-only for " + user + "@" + address);
+  
+  /**
+   * The actual processing logic of the Filter
+   * Uses our {@HttpInteraction} shim which can be called from a variety of incoming request sources
+   * @param interaction - An HttpInteraction object from any of our callers
+   */
+  public void handleInteraction(HttpInteraction interaction)
+      throws IOException, ServletException {
+    final String address = interaction.getRemoteAddr();
+    final String query = interaction.getQueryString();
+    final String path = interaction.getRequestURI().substring(WebHdfsFileSystem.PATH_PREFIX.length());
+    String user = interaction.getRemoteUser();
+
+    LOG.trace("Got request user: {}, remoteIp: {}, query: {}", user, address, query);
+    if(!interaction.isCommitted() && "GET".equalsIgnoreCase(interaction.getMethod())) {
+      LOG.trace("Got GET query and not committed");
+      // loop over all query parts
+      String[] queryParts = query.split("&");
+
+      if(user == null) {
+        LOG.trace("Looking for delegation token to identify user");
+        for(String part : queryParts) {
+          if (part.trim().startsWith("delegation=")){
+            Token t = new Token();
+            t.decodeFromUrlString(part.split("=", 2)[1]);
+            ByteArrayInputStream buf = new ByteArrayInputStream(t.getIdentifier());
+            DelegationTokenIdentifier identifier = new DelegationTokenIdentifier();
+            identifier.readFields(new DataInputStream(buf));
+            user = identifier.getUser().getUserName();
+            LOG.trace("Updated request user: {}, remoteIp: {}, query: {}", user, address, query);
+          }
+        }
+      }
+
+      for(String part : query.split("&")) {
+        if ((part.trim().equalsIgnoreCase("op=OPEN") || part.trim().equalsIgnoreCase("op=GETDELEGATIONTOKEN")) && !(matchRule("*", address, path) || matchRule(user, address, path))) {
+          LOG.trace("Rejecting interaction; no rule found");
+          interaction.sendError(HttpServletResponse.SC_FORBIDDEN,
+            "WebHDFS is configured write-only for " + user + "@" + address + "for file: " + path);
+          return;
+        }
+>>>>>>> 23ccadf... Print out trying to initialize each filter
       }
     }
 
-    filterChain.doFilter(request, response);
+    LOG.trace("Proceeding with interaction");
+    interaction.proceed();
   }
 
   /**
@@ -212,6 +261,72 @@ public class HostRestrictingAuthorizationFilter implements Filter {
   public static Map<String, String> getFilterParams(Configuration conf,
       String confPrefix) {
     return conf.getPropsWithPrefix(confPrefix);
+  }
+
+  /**
+   * {@link HttpInteraction} implementation for use in the servlet filter.
+   */
+  private static final class ServletFilterHttpInteraction
+      implements HttpInteraction {
+
+    private final FilterChain chain;
+    private final HttpServletRequest httpRequest;
+    private final HttpServletResponse httpResponse;
+
+    /**
+     * Creates a new ServletFilterHttpInteraction.
+     *
+     * @param httpRequest request to process
+     * @param httpResponse response to process
+     * @param chain filter chain to forward to if HTTP interaction is allowed
+     */
+    public ServletFilterHttpInteraction(HttpServletRequest httpRequest,
+        HttpServletResponse httpResponse, FilterChain chain) {
+      this.httpRequest = httpRequest;
+      this.httpResponse = httpResponse;
+      this.chain = chain;
+    }
+
+    @Override
+    public boolean isCommitted() {
+      return(httpResponse.isCommitted());
+    }
+
+    @Override
+    public String getRemoteAddr() {
+      return(httpRequest.getRemoteAddr());
+    }
+
+    @Override
+    public String getRemoteUser() {
+      return(httpRequest.getRemoteUser());
+    }
+
+    @Override
+    public String getRequestURI() {
+      return(httpRequest.getRequestURI());
+    }
+
+    @Override
+    public String getQueryString() {
+      return(httpRequest.getQueryString());
+    }
+
+    @Override
+    public String getMethod() {
+      return httpRequest.getMethod();
+    }
+
+    @Override
+    public void proceed() throws IOException, ServletException {
+      chain.doFilter(httpRequest, httpResponse);
+    }
+
+    @Override
+    public void sendError(int code, String message) throws IOException {
+      httpResponse.sendError(code, message);
+    }
+
   }
 
   /**
@@ -258,7 +373,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
      *
      * @return an optional contianing the URL query string
      */
-    Optional<String> getQueryString();
+    String getQueryString();
 
     /**
      * Returns the method.

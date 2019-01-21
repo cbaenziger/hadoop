@@ -23,8 +23,8 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +32,7 @@ import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.FilterConfig;
 import javax.servlet.FilterChain;
 
 import io.netty.channel.ChannelFutureListener;
@@ -44,6 +45,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCountUtil;
 
 import org.apache.commons.logging.Log;
+import com.google.common.collect.ImmutableMap;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
@@ -85,10 +87,41 @@ final class HostRestrictingAuthorizationFilterHandler
     this.hostRestrictingAuthorizationFilter = hostRestrictingAuthorizationFilter;
   }
 
+  /**
+   * XXX -- performance issue need to cache filter if CsrfFilterHandler is an example
+   *
+   * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
+   * instance created for each new Netty channel/pipeline serving a new request.
+   * To prevent the cost of repeated initialization of the filter, this
+   * constructor requires the caller to pass in a pre-built, fully initialized
+   * filter instance.  The filter is stateless after initialization, so it can
+   * be shared across multiple Netty channels/pipelines.
+   *
+   * @param hostRestrictingAuthorizationFilter initialized filter
+   * @param conf Hadoop configuration object
+   */
+  public HostRestrictingAuthorizationFilterHandler() {
+    this.conf = new Configuration();
+    String confName = HostRestrictingAuthorizationFilter.HDFS_CONFIG_PREFIX +
+                       HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG;
+    String confValue = conf.get(confName);
+    confValue = (confValue == null ? "" : confValue);
+    Map<String, String> confMap = ImmutableMap.of(HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG, confValue);
+    FilterConfig fc = new DatanodeHttpServer.MapBasedFilterConfig(HostRestrictingAuthorizationFilter.class.getName(), confMap);
+    this.hostRestrictingAuthorizationFilter = new HostRestrictingAuthorizationFilter();
+    try {
+      this.hostRestrictingAuthorizationFilter.init(fc);
+    } catch (ServletException e) {
+       throw new IllegalStateException(
+         "Failed to initialize HostRestrictingAuthorizationFilter.", e);
+    }
+  }
+
   @Override
   protected void channelRead0(final ChannelHandlerContext ctx,
       final HttpRequest req) throws Exception {
-    handleHttpInteraction(new NettyHttpInteraction(ctx, req));
+    LOG.trace("ChannelRead0 called");
+    hostRestrictingAuthorizationFilter.handleInteraction(new NettyHttpInteraction(ctx, req));
   }
 
   @Override
@@ -108,39 +141,9 @@ final class HostRestrictingAuthorizationFilterHandler
    */
   private static void sendResponseAndClose(ChannelHandlerContext ctx,
       DefaultHttpResponse resp) {
+    LOG.trace("sendResponseAndClose called");
     resp.headers().set(CONNECTION, CLOSE);
     ctx.writeAndFlush(resp).addListener(ChannelFutureListener.CLOSE);
-  }
-
-  // XXX for initing the filter:
-  //  Map<String, String> hostRestrictingAuthorizationParams = hostRestrictingAuthorizationFilter
-  //    .getFilterParams(conf, HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG);
-
-  /**
-   * Handles an {@link HttpInteraction} by applying the filtering logic.
-   *
-   * @param httpInteraction caller's HTTP interaction
-   * @throws IOException if there is an I/O error
-   * @throws ServletException if the implementation relies on the servlet API
-   *     and a servlet API call has failed
-   */
-  public void handleHttpInteraction(HttpInteraction httpInteraction)
-      throws IOException, ServletException {
-    // a mock filterChain
-    FilterChain chain = new FilterChain() {
-      @Override
-      public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse)
-          throws IOException, ServletException {
-      }
-    };
-
-    // run the filter
-    hostRestrictingAuthorizationFilter.doFilter((ServletRequest)httpInteraction, (ServletResponse)httpInteraction, chain);
-
-    // if we did not call sendError to commit, then continue on
-    if (!httpInteraction.isCommitted()) {
-      httpInteraction.proceed();
-    }
   }
 
   /**
@@ -176,17 +179,19 @@ final class HostRestrictingAuthorizationFilterHandler
     }
 
     @Override
-    public Optional<String> getQueryString() {
+    public String getQueryString() {
       try {
-        return Optional.ofNullable(new URL(req.getUri()).getQuery());
-      } catch (MalformedURLException e) {
-        return Optional.ofNullable(null);
+        return (new URI(req.getUri()).getQuery());
+      } catch (URISyntaxException e) {
+        return null;
       }
     }
 
     @Override
     public String getRequestURI() {
-      return(req.getUri());
+      String uri = req.getUri();
+      // Netty's getUri includes the query string, while Servlet's does not
+      return(uri.substring(0, uri.indexOf("?") >= 0 ? uri.indexOf("?") : uri.length()));
     }
 
     @Override
