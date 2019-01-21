@@ -56,9 +56,6 @@ public class HostRestrictingAuthorizationFilter implements Filter {
   private HashMap<String, ArrayList<Rule>> RULEMAP = null;
   public static final String HDFS_CONFIG_PREFIX = "dfs.web.authentication.";
   public static final String RESTRICTION_CONFIG = "host.allow.rules";
-  // A Java Predicate for query string parameters on which to filter requests
-  public static final Predicate<String> restrictedOperations = qStr -> (qStr.trim().equalsIgnoreCase("op=OPEN") ||
-                                                                        qStr.trim().equalsIgnoreCase("op=GETDELEGATIONTOKEN"));
 
   private class Rule {
     private final SubnetUtils.SubnetInfo subnet;
@@ -239,7 +236,6 @@ public class HostRestrictingAuthorizationFilter implements Filter {
             "WebHDFS is configured write-only for " + user + "@" + address + "for file: " + path);
           return;
         }
->>>>>>> 23ccadf... Print out trying to initialize each filter
       }
     }
 

@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.web;
 
+import static org.apache.hadoop.hdfs.server.datanode.web.HdfsClientConfigKeys.DFS_WEBHDFS_REST_CSRF_ENABLED_DEFAULT;
+import static org.apache.hadoop.hdfs.server.datanode.web.HdfsClientConfigKeys.DFS_WEBHDFS_REST_CSRF_ENABLED_KEY;
 import io.netty.bootstrap.ChannelFactory;
 
 import java.util.Enumeration;
