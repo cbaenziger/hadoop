@@ -232,14 +232,12 @@ public class HostRestrictingAuthorizationFilter implements Filter {
         }
       }
 
-      for(String part : query.split("&")) {
-        if ((part.trim().equalsIgnoreCase("op=OPEN") || part.trim().equalsIgnoreCase("op=GETDELEGATIONTOKEN")) && !(matchRule("*", address, path) || matchRule(user, address, path))) {
-          LOG.trace("Rejecting interaction; no rule found");
-          interaction.sendError(HttpServletResponse.SC_FORBIDDEN,
-            "WebHDFS is configured write-only for " + user + "@" + address + "for file: " + path);
-          return;
-        }
->>>>>>> 23ccadf... Print out trying to initialize each filter
+      boolean readQuery = Arrays.stream(query.trim().split("&")).anyMatch(restrictedOperations);
+      if (readQuery && !(matchRule("*", address, path) || matchRule(user, address, path))) {
+        LOG.trace("Rejecting interaction; no rule found");
+        interaction.sendError(HttpServletResponse.SC_FORBIDDEN,
+          "WebHDFS is configured write-only for " + user + "@" + address + "for file: " + path);
+        return;
       }
     }
 

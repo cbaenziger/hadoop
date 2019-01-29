@@ -22,6 +22,8 @@ import static io.netty.handler.codec.http.HttpHeaders.Values.CLOSE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -44,9 +46,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCountUtil;
 
-import org.apache.commons.logging.Log;
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter;
@@ -54,6 +53,10 @@ import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter.H
 import org.apache.hadoop.hdfs.web.resources.UserParam;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.hdfs.server.datanode.web.DatanodeHttpServer;
+
+import com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Netty handler that integrates with the {@link HostRestrictingAuthorizationFilter}.  If
@@ -65,7 +68,7 @@ import org.apache.hadoop.hdfs.server.datanode.web.DatanodeHttpServer;
 final class HostRestrictingAuthorizationFilterHandler
     extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private static final Log LOG = DatanodeHttpServer.LOG;
+  private Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilterHandler.class);
 
   private final HostRestrictingAuthorizationFilter hostRestrictingAuthorizationFilter;
   private final Configuration conf;
@@ -120,7 +123,6 @@ final class HostRestrictingAuthorizationFilterHandler
   @Override
   protected void channelRead0(final ChannelHandlerContext ctx,
       final HttpRequest req) throws Exception {
-    LOG.trace("ChannelRead0 called");
     hostRestrictingAuthorizationFilter.handleInteraction(new NettyHttpInteraction(ctx, req));
   }
 
@@ -141,7 +143,6 @@ final class HostRestrictingAuthorizationFilterHandler
    */
   private static void sendResponseAndClose(ChannelHandlerContext ctx,
       DefaultHttpResponse resp) {
-    LOG.trace("sendResponseAndClose called");
     resp.headers().set(CONNECTION, CLOSE);
     ctx.writeAndFlush(resp).addListener(ChannelFutureListener.CLOSE);
   }
