@@ -17,26 +17,7 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.web;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static io.netty.handler.codec.http.HttpHeaders.Values.CLOSE;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.FilterConfig;
-import javax.servlet.FilterChain;
-
+import com.google.common.collect.ImmutableMap;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -45,18 +26,26 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCountUtil;
-
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter;
 import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter.HttpInteraction;
 import org.apache.hadoop.hdfs.web.resources.UserParam;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.hdfs.server.datanode.web.DatanodeHttpServer;
-
-import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Map;
+
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
+import static io.netty.handler.codec.http.HttpHeaders.Values.CLOSE;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
  * Netty handler that integrates with the {@link HostRestrictingAuthorizationFilter}.  If
@@ -100,8 +89,6 @@ final class HostRestrictingAuthorizationFilterHandler
    * filter instance.  The filter is stateless after initialization, so it can
    * be shared across multiple Netty channels/pipelines.
    *
-   * @param hostRestrictingAuthorizationFilter initialized filter
-   * @param conf Hadoop configuration object
    */
   public HostRestrictingAuthorizationFilterHandler() {
     this.conf = new Configuration();

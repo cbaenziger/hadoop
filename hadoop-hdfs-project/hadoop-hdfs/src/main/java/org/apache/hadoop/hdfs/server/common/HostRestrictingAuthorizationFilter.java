@@ -17,39 +17,31 @@
  */
 package org.apache.hadoop.hdfs.server.common;
 
-import javax.servlet.ServletException;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.net.util.SubnetUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
+import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
+import org.apache.hadoop.security.token.Token;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
-import org.apache.hadoop.hdfs.web.AuthFilter;
-import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
-import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
-import org.apache.hadoop.security.token.Token;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
-import java.lang.Iterable;
-import java.util.Arrays;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.function.Predicate;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
-import org.apache.commons.net.util.SubnetUtils;
-import org.apache.commons.io.FilenameUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.Predicate;
 
 public class HostRestrictingAuthorizationFilter implements Filter {
   private Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilter.class);
@@ -149,7 +141,10 @@ public class HostRestrictingAuthorizationFilter implements Filter {
 
   @Override
   public void init(FilterConfig config) throws ServletException {
+<<<<<<< HEAD
     HashMap<String, String> overrideConfigs = new HashMap<String, String>();
+=======
+>>>>>>> 7ad917b... Anu's Patch
 
     // Process dropbox rules
     String dropboxRules = config.getInitParameter(RESTRICTION_CONFIG);
@@ -157,12 +152,20 @@ public class HostRestrictingAuthorizationFilter implements Filter {
       // name: dropbox.allow.rules
       // value: user1,network/bits1,path_glob1|user2,network/bints2,path_glob2...
       String[] rules = dropboxRules.split("\\||\n");
+<<<<<<< HEAD
       RULEMAP = new HashMap<String, ArrayList<Rule>>(rules.length);
+=======
+      RULEMAP = new HashMap<>(rules.length);
+>>>>>>> 7ad917b... Anu's Patch
       for(String line : rules) {
         String[] parts = line.split(",", 3);
         // ensure we got a valid configuration record
         if (parts.length != 3) {
+<<<<<<< HEAD
           LOG.debug("Failed to parse rule entry: {}", line);
+=======
+          LOG.warn("Failed to parse rule entry: {}", line);
+>>>>>>> 7ad917b... Anu's Patch
           continue;
         }
         LOG.debug("Loaded rule: user: {}, network/bits: {} path: {}", parts[0], parts[1], parts[2]);

@@ -17,45 +17,18 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.web;
 
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-
-import java.io.IOException;
-import java.lang.StringBuffer;
-import java.util.Arrays;
-import java.util.Vector;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
-import java.net.InetSocketAddress;
 import com.google.common.net.InetAddresses;
-
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
-
+import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.hadoop.hdfs.server.datanode.web.HostRestrictingAuthorizationFilterHandler;
-import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
-import org.apache.hadoop.conf.Configuration;
+
+import java.net.InetSocketAddress;
 
 public class TestHostRestrictingAuthorizationFilterHandler {
   private Logger log = LoggerFactory.getLogger(TestHostRestrictingAuthorizationFilterHandler.class);
