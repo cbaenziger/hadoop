@@ -38,9 +38,11 @@ import java.io.DataInputStream;
 import java.lang.Iterable;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.function.Predicate;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -53,7 +55,7 @@ import org.slf4j.LoggerFactory;
 
 public class HostRestrictingAuthorizationFilter implements Filter {
   private Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilter.class);
-  private HashMap<String, ArrayList<Rule>> RULEMAP = null;
+  private Map<String, ArrayList<Rule>> RULEMAP = null;
   public static final String HDFS_CONFIG_PREFIX = "dfs.web.authentication.";
   public static final String RESTRICTION_CONFIG = "host.allow.rules";
   // A Java Predicate for query string parameters on which to filter requests
@@ -69,7 +71,6 @@ public class HostRestrictingAuthorizationFilter implements Filter {
      *
      * @param subnet - the IPv4 subnet for which this rule is valid (pass null for
      * any network location)
-     *
      * @param path - the HDFS path for which this rule is valid
      */
     Rule(SubnetUtils.SubnetInfo subnet, String path) {
@@ -90,46 +91,39 @@ public class HostRestrictingAuthorizationFilter implements Filter {
    * Check all rules for this user to see if one matches for this host/path pair
    *
    * @Param: user - user to check rules for
-   *
    * @Param: host - IP address (e.g. "192.168.0.1")
-   *
    * @Param: path - file path with no scheme (e.g. /path/foo)
-   *
    * @Returns: true if a rule matches this user, host, path tuple false if an
    * error occurs or no match
    */
   private boolean matchRule(String user, String remoteIp, String path) {
     // allow lookups for blank in the rules for user and path
-    user = (user == null ? "" : user);
-    path = (path == null ? "" : path);
+    user = (user != null ? user : "");
+    path = (path != null ? path : "");
 
     LOG.trace("Got user: {}, remoteIp: {}, path: {}", user, remoteIp, path);
-
-    ArrayList<Rule> userRules = RULEMAP.get(user);
-    ArrayList<Rule> anyRules = RULEMAP.get("*");
-    if(anyRules != null) {
-      if(userRules != null) {
-        userRules.addAll(RULEMAP.get("*"));
-      } else {
-        userRules = anyRules;
-      }
-    }
 
     // isInRange fails for null/blank IPs, require an IP to approve
     if(remoteIp == null) {
       LOG.trace("Returned false due to null rempteIp");
       return false;
     }
+    
+    List<Rule> userRules = ((userRules = RULEMAP.get(user)) != null) ? userRules : new ArrayList<Rule>();
+    List<Rule> anyRules = ((anyRules = RULEMAP.get("*")) != null) ? anyRules : new ArrayList<Rule>();
+    userRules.addAll(anyRules);
 
     if(userRules != null) {
       for(Rule rule : userRules) {
+    	SubnetUtils.SubnetInfo subnet = rule.getSubnet();
+    	String rulePath = rule.getPath();
         LOG.trace("Evaluating rule, subnet: {}, path: {}",
-                  rule.getSubnet() != null ? rule.getSubnet().getCidrSignature() : null, rule.getPath());
+                  subnet != null ? subnet.getCidrSignature() : null, rulePath);
         try {
-          if((rule.getSubnet() == null || rule.getSubnet().isInRange(remoteIp))
-              && FilenameUtils.directoryContains(rule.getPath(), path)) {
+          if((subnet == null || subnet.isInRange(remoteIp))
+              && FilenameUtils.directoryContains(rulePath, path)) {
             LOG.debug("Found matching rule, subnet: {}, path: {}; returned true",
-                      rule.getSubnet() != null ? rule.getSubnet().getCidrSignature() : null, rule.getPath());
+                      rule.getSubnet() != null ? subnet.getCidrSignature() : null, rulePath);
             return true;
           }
         } catch(IOException e) {
