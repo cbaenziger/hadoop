@@ -90,10 +90,10 @@ public class HostRestrictingAuthorizationFilter implements Filter {
   /*
    * Check all rules for this user to see if one matches for this host/path pair
    *
-   * @Param: user - user to check rules for
-   * @Param: host - IP address (e.g. "192.168.0.1")
-   * @Param: path - file path with no scheme (e.g. /path/foo)
-   * @Returns: true if a rule matches this user, host, path tuple false if an
+   * @param: user - user to check rules for
+   * @param: host - IP address (e.g. "192.168.0.1")
+   * @param: path - file path with no scheme (e.g. /path/foo)
+   * @returns: true if a rule matches this user, host, path tuple false if an
    * error occurs or no match
    */
   private boolean matchRule(String user, String remoteIp, String path) {
@@ -147,35 +147,48 @@ public class HostRestrictingAuthorizationFilter implements Filter {
 
     // Process dropbox rules
     String dropboxRules = config.getInitParameter(RESTRICTION_CONFIG);
-    if(dropboxRules != null) {
-      // name: dropbox.allow.rules
+    loadRuleMap(dropboxRules);
+  }  
+
+  /**
+   * Initializes the rule map state for the filter
+   *
+   * @param ruleString - a string of newline delineated, comma separated three field records
+   * @throws IllegalArgumentException - when a rule can not be properly parsed
+   * Postconditions:
+   * <ul>
+   * <li>The {@RULEMAP} hash will be populated with all parsed rules.</li>
+   * </ul>
+   */
+  private void loadRuleMap(String ruleString) throws IllegalArgumentException{
+    if(ruleString == null) {
+      // make an empty hash since we have no rules
+      RULEMAP = new HashMap(0);
+      LOG.debug("Got no rules - will disallow access");
+    } else {
       // value: user1,network/bits1,path_glob1|user2,network/bints2,path_glob2...
-      String[] rules = dropboxRules.split("\\||\n");
+      String[] rules = ruleString.split("\\||\n");
       RULEMAP = new HashMap<String, ArrayList<Rule>>(rules.length);
       for(String line : rules) {
         String[] parts = line.split(",", 3);
         // ensure we got a valid configuration record
         if (parts.length != 3) {
-          LOG.debug("Failed to parse rule entry: {}", line);
-          continue;
+          LOG.error("Failed to parse rule entry: {}", line);
+          throw new IllegalArgumentException(line);
         }
-        LOG.debug("Loaded rule: user: {}, network/bits: {} path: {}", parts[0], parts[1], parts[2]);
-        String globPattern = parts[2];
-        // Map is {"user": [subnet, path]}
-        Rule rule = null;
-        if(parts[1].trim().equals("*")) {
-          rule = new Rule(null, globPattern);
-        } else {
-          rule = new Rule(new SubnetUtils(parts[1]).getInfo(), globPattern);
-        }
-        // Update the rule map with this rule
-        ArrayList<Rule> ruleList = RULEMAP.getOrDefault(parts[0], new ArrayList<Rule>() {});
+        
+        String user = parts[0];
+        String cidr = parts[1];
+        String path = parts[2];
+        
+        LOG.debug("Loaded rule: user: {}, network/bits: {} path: {}", user, cidr, path);
+        Rule rule = (cidr.trim().equals("*") ? new Rule(null, path) : new Rule(new SubnetUtils(cidr).getInfo(), path));
+        
+        // Rule map is {"user": [rule1, rule2, ...]}, update the user's array
+        ArrayList<Rule> ruleList = RULEMAP.getOrDefault(user, new ArrayList<Rule>() {});
         ruleList.add(rule);
-        RULEMAP.put(parts[0], ruleList);
+        RULEMAP.put(user, ruleList);
       }
-    } else {
-      // make an empty hash since we have no rules
-      RULEMAP = new HashMap(0);
     }
   }
 
