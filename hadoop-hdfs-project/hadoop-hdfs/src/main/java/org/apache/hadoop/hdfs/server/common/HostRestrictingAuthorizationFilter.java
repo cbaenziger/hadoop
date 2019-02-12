@@ -35,9 +35,11 @@ import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.apache.hadoop.security.token.Token;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.lang.IllegalArgumentException;
 import java.lang.Iterable;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.function.BiFunction;
 import java.util.List;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -47,6 +49,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.commons.net.util.SubnetUtils;
 import org.apache.commons.io.FilenameUtils;
 
@@ -161,33 +165,41 @@ public class HostRestrictingAuthorizationFilter implements Filter {
    * </ul>
    */
   private void loadRuleMap(String ruleString) throws IllegalArgumentException{
-    if(ruleString == null) {
-      // make an empty hash since we have no rules
-      RULEMAP = new HashMap(0);
-      LOG.debug("Got no rules - will disallow access");
+    RULEMAP = new HashMap<String, ArrayList<Rule>>();
+	if(ruleString == null) {
+      LOG.debug("Got no rules - will disallow anyone access");
     } else {
       // value: user1,network/bits1,path_glob1|user2,network/bints2,path_glob2...
-      String[] rules = ruleString.split("\\||\n");
-      RULEMAP = new HashMap<String, ArrayList<Rule>>(rules.length);
-      for(String line : rules) {
-        String[] parts = line.split(",", 3);
-        // ensure we got a valid configuration record
-        if (parts.length != 3) {
-          LOG.error("Failed to parse rule entry: {}", line);
-          throw new IllegalArgumentException(line);
-        }
-        
-        String user = parts[0];
-        String cidr = parts[1];
-        String path = parts[2];
-        
-        LOG.debug("Loaded rule: user: {}, network/bits: {} path: {}", user, cidr, path);
-        Rule rule = (cidr.trim().equals("*") ? new Rule(null, path) : new Rule(new SubnetUtils(cidr).getInfo(), path));
-        
+      Pattern comma_split = Pattern.compile(",");
+      Pattern rule_split = Pattern.compile("\\||\n");
+      // split all rule lines
+      Map<Integer, List<String[]>> splits = rule_split.splitAsStream(ruleString)
+    		  .map(x -> comma_split.split(x,3))
+    		  .collect(Collectors.groupingBy(x -> x.length));
+      // verify all rules have three parts
+      if (!splits.keySet().equals(Collections.singleton(3))) {
+        // instead of re-joining, re-materialize lines which do not split correctly
+        String bad_lines = rule_split.splitAsStream(ruleString)
+        		.filter(x -> comma_split.split(x,3).length != 3)
+        		.collect(Collectors.joining("\n"));
+        throw new IllegalArgumentException("Bad rule definition: " + bad_lines);
+      }
+      // create a list of Rules
+      int user = 0;
+      int cidr = 1;
+      int path  = 2;
+	  BiFunction<ArrayList<Rule>, ArrayList<Rule>, ArrayList<Rule>> arrayListMerge = (v1, v2) -> {
+		  v1.addAll(v2);
+		  return v1;
+      };
+      for (String[] split : splits.get(3)) {
+        LOG.debug("Loaded rule: user: {}, network/bits: {} path: {}", split[user], split[cidr], split[path]);
+        Rule rule = (split[cidr].trim().equals("*") ? new Rule(null, split[path]) : new Rule(new SubnetUtils(split[cidr]).getInfo(), split[path]));
         // Rule map is {"user": [rule1, rule2, ...]}, update the user's array
-        ArrayList<Rule> ruleList = RULEMAP.getOrDefault(user, new ArrayList<Rule>() {});
-        ruleList.add(rule);
-        RULEMAP.put(user, ruleList);
+        RULEMAP.merge(split[user], (ArrayList<Rule>) Arrays.asList(rule), arrayListMerge);
+        //XXX ArrayList<Rule> ruleList = RULEMAP.getOrDefault(user, new ArrayList<Rule>() {});
+        //ruleList.add(rule);
+        //RULEMAP.put(user, ruleList);
       }
     }
   }
