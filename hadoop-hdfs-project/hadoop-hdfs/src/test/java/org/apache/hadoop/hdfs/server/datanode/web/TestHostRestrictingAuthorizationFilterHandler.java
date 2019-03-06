@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdfs.server.datanode.web;
 
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 
@@ -48,6 +49,12 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.hadoop.hdfs.server.datanode.web.webhdfs.WebHdfsHandler;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus ;
 
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -59,12 +66,12 @@ import org.apache.hadoop.conf.Configuration;
 
 public class TestHostRestrictingAuthorizationFilterHandler {
   private Logger log = LoggerFactory.getLogger(TestHostRestrictingAuthorizationFilterHandler.class);
-
   /*
    * Test running in with no ACL rules (restrict all)
    */
   @Test
   public void testRejectAll() throws Exception {
+	  EmbeddedChannel channel = new EmbeddedChannel(new HostRestrictingAuthorizationFilterHandler());
    // XXX how to inject this for the classpath based Configuration?
    // Configuration conf = new HdfsConfiguration();
    // String confName = HostRestrictingAuthorizationFilter.HDFS_CONFIG_PREFIX +
@@ -72,16 +79,16 @@ public class TestHostRestrictingAuthorizationFilterHandler {
    // String allowRule = "*,*,/";
    // conf.set(confName, allowRule);
 
-    ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
-    Mockito.when(context.channel().remoteAddress())
-      .thenReturn(new InetSocketAddress(InetAddresses.forString("192.168.1.2"), 32768));
-
-    HostRestrictingAuthorizationFilterHandler handler = new HostRestrictingAuthorizationFilterHandler();
-
-    DefaultFullHttpRequest fullHttpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+   
+    FullHttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
                                                             HttpMethod.GET,
                                                             WebHdfsFileSystem.PATH_PREFIX + "/user/ubuntu/foo&op=OPEN");
-    handler.channelRead(context, fullHttpRequest);
+
+    assertTrue("Unable to write data to Netty channel", channel.writeAndFlush(httpRequest).await(1000));    
+    DefaultFullHttpRequest outboundChannelResponse = (DefaultFullHttpRequest) channel.readOutbound();
+//    assertNotNull("Failed to receive response from filter", outboundChannelResponse);
+    log.error("XXX" + outboundChannelResponse.content());
+    assertTrue(outboundChannelResponse.equals(HttpResponseStatus.FORBIDDEN));
 // How to mock these?
 //      HttpResponseStatus status = new HttpResponseStatus(code, message);
 //      sendResponseAndClose(context, new DefaultHttpResponse(HTTP_1_1, status));

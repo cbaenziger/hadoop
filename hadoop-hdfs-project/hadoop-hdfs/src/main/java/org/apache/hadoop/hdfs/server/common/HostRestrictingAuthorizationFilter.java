@@ -166,7 +166,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
    */
   private void loadRuleMap(String ruleString) throws IllegalArgumentException{
     RULEMAP = new HashMap<String, ArrayList<Rule>>();
-	if(ruleString == null) {
+	if(ruleString == null || ruleString.equals("")) {
       LOG.debug("Got no rules - will disallow anyone access");
     } else {
       // value: user1,network/bits1,path_glob1|user2,network/bints2,path_glob2...
@@ -196,7 +196,12 @@ public class HostRestrictingAuthorizationFilter implements Filter {
         LOG.debug("Loaded rule: user: {}, network/bits: {} path: {}", split[user], split[cidr], split[path]);
         Rule rule = (split[cidr].trim().equals("*") ? new Rule(null, split[path]) : new Rule(new SubnetUtils(split[cidr]).getInfo(), split[path]));
         // Rule map is {"user": [rule1, rule2, ...]}, update the user's array
-        RULEMAP.merge(split[user], (ArrayList<Rule>) Arrays.asList(rule), arrayListMerge);
+        ArrayList<Rule> arrayListRule = new ArrayList<Rule>() { 
+            { 
+                add(rule);
+            }
+        };
+        RULEMAP.merge(split[user], arrayListRule, arrayListMerge);
         //XXX ArrayList<Rule> ruleList = RULEMAP.getOrDefault(user, new ArrayList<Rule>() {});
         //ruleList.add(rule);
         //RULEMAP.put(user, ruleList);
