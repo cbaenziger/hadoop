@@ -236,7 +236,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     String user = interaction.getRemoteUser();
 
     LOG.trace("Got request user: {}, remoteIp: {}, query: {}", user, address, query);
-    if(!interaction.isCommitted() && "GET".equalsIgnoreCase(interaction.getMethod())) {
+    if(!interaction.isCommitted() && "GET".equalsIgnoreCase(interaction.getMethod()) && query != null) {
       LOG.trace("Got GET query and not committed");
       // loop over all query parts
       String[] queryParts = query.split("&");
@@ -257,7 +257,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
       }
 
       boolean readQuery = Arrays.stream(query.trim().split("&")).anyMatch(restrictedOperations);
-      if (readQuery && !(matchRule("*", address, path) || matchRule(user, address, path))) {
+      if (query == null || (readQuery && !(matchRule("*", address, path) || matchRule(user, address, path)))) {
         LOG.trace("Rejecting interaction; no rule found");
         interaction.sendError(HttpServletResponse.SC_FORBIDDEN,
           "WebHDFS is configured write-only for " + user + "@" + address + "for file: " + path);
