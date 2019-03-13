@@ -51,14 +51,18 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.hadoop.hdfs.server.datanode.web.webhdfs.WebHdfsHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.handler.codec.http.QueryStringDecoder;
 
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
@@ -89,40 +93,24 @@ public class TestHostRestrictingAuthorizationFilterHandler {
 	        return this.socketAddress;
 	    }
 	}
+  
   /*
    * Test running in with no ACL rules (restrict all)
    */
   @Test
   public void testRejectAll() throws Exception {
-    EmbeddedChannel channel = new CustomEmbeddedChannel("127.0.0.1", 1006, new HttpRequestDecoder(),
-            new HttpResponseEncoder(), new HostRestrictingAuthorizationFilterHandler());
-    // XXX how to inject this for the classpath based Configuration?
-    // Configuration conf = new HdfsConfiguration();
-    // String confName = HostRestrictingAuthorizationFilter.HDFS_CONFIG_PREFIX +
-    //                   HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG;
-    // String allowRule = "*,*,/";
-    // conf.set(confName, allowRule);
-
-   
+    EmbeddedChannel channel = new CustomEmbeddedChannel("127.0.0.1", 1006, new HostRestrictingAuthorizationFilterHandler());
     FullHttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
                                                              HttpMethod.GET,
-                                                             WebHdfsFileSystem.PATH_PREFIX + "/user/ubuntu/foo&op=OPEN");
-
-    //assertTrue("Unable to write data to Netty channel outbound", channel.writeOutbound(httpRequest));   
-    //assertTrue("Unable to write data to Netty channel inbound", channel.writeInbound(channel.readOutbound()));
-    channel.writeAndFlush(httpRequest).await(1000);
-    channel.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).await(1000);
-    FullHttpResponse channelResponse = (FullHttpResponse) channel.inboundMessages().poll();
-    assertNotNull("Expected response to exist, maybe you did not wait long enough?", channelResponse);
+                                                             "http://somehost/" + WebHdfsFileSystem.PATH_PREFIX + "/user/myName/fooFile?op=OPEN");
+    // we will send back an error so ensure our write returns false
+    assertFalse("Should get error back from handler for rejected request", channel.writeInbound(httpRequest));   
+    DefaultHttpResponse channelResponse = (DefaultHttpResponse) channel.outboundMessages().poll();
+    assertNotNull("Expected response to exist.", channelResponse);
     
-    //DefaultFullHttpRequest inboundChannelResponse = (DefaultFullHttpRequest) channel.readInbound();
-
-//    assertNotNull("Failed to receive response from filter", outboundChannelResponse);
     log.error("XXX" + channelResponse.toString());
-    assertTrue(channelResponse.equals(HttpResponseStatus.FORBIDDEN));
-// How to mock these?
-//      HttpResponseStatus status = new HttpResponseStatus(code, message);
-//      sendResponseAndClose(context, new DefaultHttpResponse(HTTP_1_1, status));
+    assertTrue(channelResponse.getStatus().equals(HttpResponseStatus.FORBIDDEN));
+
   }
 
 

@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
 final class HostRestrictingAuthorizationFilterHandler
     extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilterHandler.class);
+  private static Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilterHandler.class);
 
   private final HostRestrictingAuthorizationFilter hostRestrictingAuthorizationFilter;
   private final Configuration conf;
