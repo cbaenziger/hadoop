@@ -63,6 +63,7 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter;
 
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
@@ -104,94 +105,25 @@ public class TestHostRestrictingAuthorizationFilterHandler {
                                                              HttpMethod.GET,
                                                              "http://somehost/" + WebHdfsFileSystem.PATH_PREFIX + "/user/myName/fooFile?op=OPEN");
     // we will send back an error so ensure our write returns false
-    assertFalse("Should get error back from handler for rejected request", channel.writeInbound(httpRequest));   
+    assertFalse("Should get error back from handler for rejected request", channel.writeInbound(httpRequest));
     DefaultHttpResponse channelResponse = (DefaultHttpResponse) channel.outboundMessages().poll();
     assertNotNull("Expected response to exist.", channelResponse);
     
-    log.error("XXX" + channelResponse.toString());
     assertTrue(channelResponse.getStatus().equals(HttpResponseStatus.FORBIDDEN));
-
   }
 
 
   /*
    * Test accepting a GET request for the file checksum when prohibited from doing
-   * a GET open call
+   * a GET open call otherwise
    */
-/*
+
   @Test
   public void testAcceptGETFILECHECKSUM() throws Exception {
-    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-    Mockito.when(request.getRemoteAddr()).thenReturn(null);
-    Mockito.when(request.getMethod()).thenReturn("GET");
-    Mockito.when(request.getRequestURI())
-        .thenReturn(new StringBuffer(WebHdfsFileSystem.PATH_PREFIX + "/user/ubuntu/").toString());
-    Mockito.when(request.getQueryString()).thenReturn("op=GETFILECHECKSUM ");
-    Mockito.when(request.getRemoteAddr()).thenReturn("192.168.1.2");
-
-    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-    Mockito.verify(response, Mockito.times(0)).sendError(Mockito.eq(HttpServletResponse.SC_FORBIDDEN),
-        Mockito.anyString());
+	EmbeddedChannel channel = new CustomEmbeddedChannel("127.0.0.1", 1006, new HostRestrictingAuthorizationFilterHandler());
+	FullHttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
+	                                                         HttpMethod.GET,
+	                                                         "http://somehost/" + WebHdfsFileSystem.PATH_PREFIX + "/user/myName/fooFile?op=GETFILECHECKSUM");
+	assertTrue("Should successfully accept request", channel.writeInbound(httpRequest));
   }
-*/
-
-  /*
-   * Test accepting a GET request for reading a file via an open call
-   */
-/*
-  @Test
-  public void testRuleAllowedGet() throws Exception {
-    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-    Mockito.when(request.getRemoteAddr()).thenReturn(null);
-    Mockito.when(request.getMethod()).thenReturn("GET");
-    Mockito.when(request.getRequestURI())
-        .thenReturn(new StringBuffer(WebHdfsFileSystem.PATH_PREFIX + "/user/ubuntu/foo").toString());
-    Mockito.when(request.getQueryString()).thenReturn("op=OPEN");
-    Mockito.when(request.getRemoteAddr()).thenReturn("192.168.1.2");
-
-    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-
-    String allowRule = "ubuntu,127.0.0.1/32,/localbits/*|ubuntu,192.168.0.1/22,/user/ubuntu/*";
-    configs.put("host.allow.rules", allowRule);
-    configs.put(AuthenticationFilter.AUTH_TYPE, "simple");
-  }
-
-*/
-
-  /*
-   * Test by default we deny an open call GET request
-   */
-/*
-  @Test
-  public void testRejectsGETs() throws Exception {
-    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-    Mockito.when(request.getRemoteAddr()).thenReturn(null);
-    Mockito.when(request.getMethod()).thenReturn("GET");
-    Mockito.when(request.getRequestURI())
-        .thenReturn(new StringBuffer(WebHdfsFileSystem.PATH_PREFIX + "/user/ubuntu/bar&foo&op=GETCONTENTSUMMARY").toString());
-    Mockito.when(request.getQueryString()).thenReturn("delegationToken=foo&op=OPEN ");
-    Mockito.when(request.getRemoteAddr()).thenReturn("192.168.1.2");
-
-    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-
-    FilterChain chain = new FilterChain() {
-      @Override
-      public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse)
-          throws IOException, ServletException {
-      }
-    };
-
-    Filter filter = new HostRestrictingAuthorizationFilter();
-
-    HashMap configs = new HashMap<String, String>() {
-    };
-    configs.put(AuthenticationFilter.AUTH_TYPE, "simple");
-    FilterConfig fc = new DummyFilterConfig(configs);
-
-    filter.init(fc);
-    filter.doFilter(request, response, chain);
-    Mockito.verify(response).sendError(Mockito.eq(HttpServletResponse.SC_FORBIDDEN), Mockito.anyString());
-    filter.destroy();
-  }
-*/
 }

@@ -91,6 +91,22 @@ final class HostRestrictingAuthorizationFilterHandler
   }
 
   /**
+   * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
+   * instance created for each new Netty channel/pipeline serving a new request.
+   * To prevent the cost of repeated initialization of the filter, this
+   * constructor requires the caller to pass in a pre-built, fully initialized
+   * filter instance.  The filter is stateless after initialization, so it can
+   * be shared across multiple Netty channels/pipelines.
+   *
+   * @param hostRestrictingAuthorizationFilter initialized filter
+   * @param conf Hadoop configuration object
+   */
+  public HostRestrictingAuthorizationFilterHandler(Configuration conf) {
+    this.HostRestrictingAuthorizationFilterHandler();
+    this.conf = conf;
+  }
+  
+  /**
    * XXX -- performance issue need to cache filter if CsrfFilterHandler is an example
    *
    * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
