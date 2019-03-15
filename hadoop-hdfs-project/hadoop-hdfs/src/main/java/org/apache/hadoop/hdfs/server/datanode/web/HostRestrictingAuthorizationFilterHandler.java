@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,20 +22,24 @@ import static io.netty.handler.codec.http.HttpHeaders.Values.CLOSE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+
 import javax.servlet.FilterConfig;
-import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter;
+import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter.HttpInteraction;
+import org.apache.hadoop.hdfs.web.resources.UserParam;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableMap;
 
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -46,20 +50,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCountUtil;
 
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter;
-import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter.HttpInteraction;
-import org.apache.hadoop.hdfs.web.resources.UserParam;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.http.RestCsrfPreventionFilter;
-import org.apache.hadoop.hdfs.server.datanode.web.DatanodeHttpServer;
-
-import com.google.common.collect.ImmutableMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-/**
+/*
  * Netty handler that integrates with the {@link HostRestrictingAuthorizationFilter}.  If
  * the filter determines that the request is allowed, then this handler forwards
  * the request to the next handler in the Netty pipeline.  Otherwise, this
@@ -72,7 +63,7 @@ final class HostRestrictingAuthorizationFilterHandler
   private Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilterHandler.class);
   private final HostRestrictingAuthorizationFilter hostRestrictingAuthorizationFilter;
 
-  /**
+  /*
    * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
    * instance created for each new Netty channel/pipeline serving a new request.
    * To prevent the cost of repeated initialization of the filter, this
@@ -87,7 +78,7 @@ final class HostRestrictingAuthorizationFilterHandler
     this.hostRestrictingAuthorizationFilter = hostRestrictingAuthorizationFilter;
   }
 
-  /**
+  /*
    * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
    * instance created for each new Netty channel/pipeline serving a new request.
    * To prevent the cost of repeated initialization of the filter, this
@@ -100,7 +91,7 @@ final class HostRestrictingAuthorizationFilterHandler
     this.hostRestrictingAuthorizationFilter = createFilter(conf);
   }
   
-  /**
+  /*
    * Creates the {@link RestCsrfPreventionFilter} for the DataNode.  This method
    * takes care of configuration and implementing just enough of the servlet API
    * and related interfaces so that the DataNode can get a fully initialized
@@ -142,7 +133,7 @@ final class HostRestrictingAuthorizationFilterHandler
         new DefaultHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR));
   }
 
-  /**
+  /*
    * Finish handling this pipeline by writing a response with the
    * "Connection: close" header, flushing, and scheduling a close of the
    * connection.
@@ -156,7 +147,7 @@ final class HostRestrictingAuthorizationFilterHandler
     ctx.writeAndFlush(resp).addListener(ChannelFutureListener.CLOSE);
   }
 
-  /**
+  /*
    * {@link HttpInteraction} implementation for use in a Netty pipeline.
    */
   private static final class NettyHttpInteraction implements HttpInteraction {
@@ -165,7 +156,7 @@ final class HostRestrictingAuthorizationFilterHandler
     private final HttpRequest req;
     private boolean committed;
 
-    /**
+    /*
      * Creates a new NettyHttpInteraction.
      *
      * @param ctx context to receive the response

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -154,7 +154,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     loadRuleMap(dropboxRules);
   }  
 
-  /**
+  /*
    * Initializes the rule map state for the filter
    *
    * @param ruleString - a string of newline delineated, comma separated three field records
@@ -209,7 +209,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     }
   }
 
-  /**
+  /*
    * doFilter() is a shim to create an HttpInteraction object and pass that to
    * the actual processing logic
    */
@@ -223,7 +223,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
   }
 
   
-  /**
+  /*
    * The actual processing logic of the Filter
    * Uses our {@HttpInteraction} shim which can be called from a variety of incoming request sources
    * @param interaction - An HttpInteraction object from any of our callers
@@ -269,7 +269,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     interaction.proceed();
   }
 
-  /**
+  /*
    * Constructs a mapping of configuration properties to be used for filter
    * initialization.  The mapping includes all properties that start with the
    * specified configuration prefix.  Property names in the mapping are trimmed
@@ -295,7 +295,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     private final HttpServletRequest httpRequest;
     private final HttpServletResponse httpResponse;
 
-    /**
+    /*
      * Creates a new ServletFilterHttpInteraction.
      *
      * @param httpRequest request to process
@@ -351,7 +351,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
 
   }
 
-  /**
+  /*
    * Defines the minimal API requirements for the filter to execute its
    * filtering logic.  This interface exists to facilitate integration in
    * components that do not run within a servlet container and therefore cannot
@@ -362,49 +362,49 @@ public class HostRestrictingAuthorizationFilter implements Filter {
    */
   public interface HttpInteraction {
 
-    /**
+    /*
      * Returns if the request has been committed.
      *
      * @return boolean
      */
     boolean isCommitted();
 
-    /**
+    /*
      * Returns the value of the requesting client address.
      *
      * @return the remote address
      */
     String getRemoteAddr();
 
-    /**
+    /*
      * Returns the user ID making the request.
      *
      * @return the user
      */
     String getRemoteUser();
 
-    /**
+    /*
      * Returns the value of the request URI.
      *
      * @return the request URI
      */
     String getRequestURI();
 
-    /**
+    /*
      * Returns the value of the query string.
      *
      * @return an optional contianing the URL query string
      */
     String getQueryString();
 
-    /**
+    /*
      * Returns the method.
      *
      * @return method
      */
     String getMethod();
 
-    /**
+    /*
      * Called by the filter after it decides that the request may proceed.
      *
      * @throws IOException if there is an I/O error
@@ -413,7 +413,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
      */
     void proceed() throws IOException, ServletException;
 
-    /**
+    /*
      * Called by the filter after it decides that the request is an
      * unauthorized request and therefore must be rejected.
      *
