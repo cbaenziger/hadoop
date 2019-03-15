@@ -238,7 +238,6 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     LOG.trace("Got request user: {}, remoteIp: {}, query: {}, path: {}", user, address, query, path);
     boolean authenticatedQuery = Arrays.stream(query.trim().split("&")).anyMatch(restrictedOperations);
     if(!interaction.isCommitted() && query != null && authenticatedQuery) {
-      LOG.trace("Got GET query {} and not committed", query);
       // loop over all query parts
       String[] queryParts = query.split("&");
 

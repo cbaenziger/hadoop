@@ -74,8 +74,7 @@ public class TestHostRestrictingAuthorizationFilter {
 
     Filter filter = new HostRestrictingAuthorizationFilter();
 
-    HashMap<String, String> configs = new HashMap<String, String>() {
-    };
+    HashMap<String, String> configs = new HashMap<String, String>() {};
     String allowRule = "*,*,/";
     log.trace("Passing configs:\n{}", allowRule);
     configs.put("host.allow.rules", allowRule);
@@ -114,8 +113,7 @@ public class TestHostRestrictingAuthorizationFilter {
 
     Filter filter = new HostRestrictingAuthorizationFilter();
 
-    HashMap configs = new HashMap<String, String>() {
-    };
+    HashMap configs = new HashMap<String, String>() {};
     configs.put(AuthenticationFilter.AUTH_TYPE, "simple");
     FilterConfig fc = new DummyFilterConfig(configs);
 
