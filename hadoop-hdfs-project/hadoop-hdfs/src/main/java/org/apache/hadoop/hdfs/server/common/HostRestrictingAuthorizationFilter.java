@@ -252,7 +252,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
             DelegationTokenIdentifier identifier = new DelegationTokenIdentifier();
             identifier.readFields(new DataInputStream(buf));
             user = identifier.getUser().getUserName();
-            LOG.trace("Updated request user: {}, remoteIp: {}, query: {}", user, address, query);
+            LOG.trace("Updated request user: {}, remoteIp: {}, query: {}, path: {}", user, address, query, path);
           }
         }
       }

@@ -150,9 +150,8 @@ public class TestHostRestrictingAuthorizationFilter {
 
     Filter filter = new HostRestrictingAuthorizationFilter();
 
-    HashMap configs = new HashMap<String, String>() {
-    };
-    String allowRule = "ubuntu,127.0.0.1/32,/localbits/*|ubuntu,192.168.0.1/22,/user/ubuntu/*";
+    HashMap configs = new HashMap<String, String>() {};
+    String allowRule = "ubuntu,127.0.0.1/32,/localbits/*|*,192.168.0.1/22,/user/ubuntu/*";
     log.trace("Passing configs:\n{}", allowRule);
     configs.put("host.allow.rules", allowRule);
     configs.put(AuthenticationFilter.AUTH_TYPE, "simple");
@@ -187,8 +186,7 @@ public class TestHostRestrictingAuthorizationFilter {
 
     Filter filter = new HostRestrictingAuthorizationFilter();
 
-    HashMap configs = new HashMap<String, String>() {
-    };
+    HashMap configs = new HashMap<String, String>() {};
     configs.put(AuthenticationFilter.AUTH_TYPE, "simple");
     FilterConfig fc = new DummyFilterConfig(configs);
 
