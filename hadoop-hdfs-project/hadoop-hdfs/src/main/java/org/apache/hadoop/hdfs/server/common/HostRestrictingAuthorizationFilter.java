@@ -122,7 +122,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     	SubnetUtils.SubnetInfo subnet = rule.getSubnet();
     	String rulePath = rule.getPath();
         LOG.trace("Evaluating rule, subnet: {}, path: {}",
-                  subnet != null ? subnet.getCidrSignature() : null, rulePath);
+                  subnet != null ? subnet.getCidrSignature() : "*", rulePath);
         try {
           if((subnet == null || subnet.isInRange(remoteIp))
               && FilenameUtils.directoryContains(rulePath, path)) {

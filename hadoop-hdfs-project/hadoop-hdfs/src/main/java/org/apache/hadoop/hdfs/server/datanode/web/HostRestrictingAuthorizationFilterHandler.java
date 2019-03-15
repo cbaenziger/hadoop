@@ -52,6 +52,7 @@ import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter;
 import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter.HttpInteraction;
 import org.apache.hadoop.hdfs.web.resources.UserParam;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.http.RestCsrfPreventionFilter;
 import org.apache.hadoop.hdfs.server.datanode.web.DatanodeHttpServer;
 
 import com.google.common.collect.ImmutableMap;
@@ -68,10 +69,8 @@ import org.slf4j.LoggerFactory;
 final class HostRestrictingAuthorizationFilterHandler
     extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private static Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilterHandler.class);
-
+  private Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilterHandler.class);
   private final HostRestrictingAuthorizationFilter hostRestrictingAuthorizationFilter;
-  private final Configuration conf;
 
   /**
    * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
@@ -82,11 +81,9 @@ final class HostRestrictingAuthorizationFilterHandler
    * be shared across multiple Netty channels/pipelines.
    *
    * @param hostRestrictingAuthorizationFilter initialized filter
-   * @param conf Hadoop configuration object
    */
   public HostRestrictingAuthorizationFilterHandler(
-      HostRestrictingAuthorizationFilter hostRestrictingAuthorizationFilter, Configuration conf) {
-    this.conf = conf;
+      HostRestrictingAuthorizationFilter hostRestrictingAuthorizationFilter) {
     this.hostRestrictingAuthorizationFilter = hostRestrictingAuthorizationFilter;
   }
 
@@ -97,45 +94,41 @@ final class HostRestrictingAuthorizationFilterHandler
    * constructor requires the caller to pass in a pre-built, fully initialized
    * filter instance.  The filter is stateless after initialization, so it can
    * be shared across multiple Netty channels/pipelines.
-   *
-   * @param hostRestrictingAuthorizationFilter initialized filter
-   * @param conf Hadoop configuration object
    */
-  public HostRestrictingAuthorizationFilterHandler(Configuration conf) {
-    this.HostRestrictingAuthorizationFilterHandler();
-    this.conf = conf;
+  public HostRestrictingAuthorizationFilterHandler() {
+    Configuration conf = new Configuration();
+    this.hostRestrictingAuthorizationFilter = createFilter(conf);
   }
   
   /**
-   * XXX -- performance issue need to cache filter if CsrfFilterHandler is an example
+   * Creates the {@link RestCsrfPreventionFilter} for the DataNode.  This method
+   * takes care of configuration and implementing just enough of the servlet API
+   * and related interfaces so that the DataNode can get a fully initialized
+   * instance of the filter.
    *
-   * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
-   * instance created for each new Netty channel/pipeline serving a new request.
-   * To prevent the cost of repeated initialization of the filter, this
-   * constructor requires the caller to pass in a pre-built, fully initialized
-   * filter instance.  The filter is stateless after initialization, so it can
-   * be shared across multiple Netty channels/pipelines.
-   *
-   * @param hostRestrictingAuthorizationFilter initialized filter
-   * @param conf Hadoop configuration object
+   * @param conf configuration to read
+   * @return initialized filter, or null if CSRF protection not enabled
+   * @throws IllegalStateException if filter fails initialization
    */
-  public HostRestrictingAuthorizationFilterHandler() {
-    this.conf = new Configuration();
-    String confName = HostRestrictingAuthorizationFilter.HDFS_CONFIG_PREFIX +
-                       HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG;
-    String confValue = conf.get(confName);
-    confValue = (confValue == null ? "" : confValue);
-    Map<String, String> confMap = ImmutableMap.of(HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG, confValue);
-    FilterConfig fc = new DatanodeHttpServer.MapBasedFilterConfig(HostRestrictingAuthorizationFilter.class.getName(), confMap);
-    this.hostRestrictingAuthorizationFilter = new HostRestrictingAuthorizationFilter();
-    try {
-      this.hostRestrictingAuthorizationFilter.init(fc);
-    } catch (ServletException e) {
-       throw new IllegalStateException(
-         "Failed to initialize HostRestrictingAuthorizationFilter.", e);
-    }
-  }
+  public static HostRestrictingAuthorizationFilter createFilter(Configuration conf) {
+	String confName = HostRestrictingAuthorizationFilter.HDFS_CONFIG_PREFIX +
+	                   HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG;
+	String confValue = conf.get(confName);
+	// simply pass a blank value if we do not have one set
+	confValue = (confValue == null ? "" : confValue);
 
+	Map<String, String> confMap = ImmutableMap.of(HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG, confValue);
+	FilterConfig fc = new DatanodeHttpServer.MapBasedFilterConfig(HostRestrictingAuthorizationFilter.class.getName(), confMap);
+	HostRestrictingAuthorizationFilter hostRestrictingAuthorizationFilter = new HostRestrictingAuthorizationFilter();
+	try {
+      hostRestrictingAuthorizationFilter.init(fc);
+	} catch (ServletException e) {
+	   throw new IllegalStateException(
+	     "Failed to initialize HostRestrictingAuthorizationFilter.", e);
+	}
+	return hostRestrictingAuthorizationFilter;
+  }
+  
   @Override
   protected void channelRead0(final ChannelHandlerContext ctx,
       final HttpRequest req) throws Exception {
