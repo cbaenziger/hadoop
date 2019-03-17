@@ -36,6 +36,8 @@ import io.netty.util.ReferenceCountUtil;
 
 import org.slf4j.Logger;
 
+import com.sun.tools.classfile.Dependency.Filter;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.security.http.RestCsrfPreventionFilter;
@@ -141,15 +143,15 @@ final class RestCsrfPreventionFilterHandler
   }
 
   /**
-   * Creates the {@link RestCsrfPreventionFilter} for the DataNode.  This method
-   * takes care of configuration and implementing just enough of the servlet API
-   * and related interfaces so that the DataNode can get a fully initialized
+   * Creates a {@link RestCsrfPreventionFilter} for the {@DatanodeHttpServer}.
+   * This method takes care of configuration and implementing just enough of the
+   * servlet API and related interfaces so that the DataNode can get a fully initialized
    * instance of the filter.
    *
    * @param conf configuration to read
    * @return initialized filter, or null if CSRF protection not enabled
    */
-  public static RestCsrfPreventionFilter createRestCsrfPreventionFilter(
+  public static Filter initializeState(
       Configuration conf) {
     if (!conf.getBoolean(DFS_WEBHDFS_REST_CSRF_ENABLED_KEY,
         DFS_WEBHDFS_REST_CSRF_ENABLED_DEFAULT)) {
@@ -165,6 +167,6 @@ final class RestCsrfPreventionFilterHandler
       throw new IllegalStateException(
           "Failed to initialize RestCsrfPreventionFilter.", e);
     }
-    return filter;
+    return((Filter) filter);
   }
 }

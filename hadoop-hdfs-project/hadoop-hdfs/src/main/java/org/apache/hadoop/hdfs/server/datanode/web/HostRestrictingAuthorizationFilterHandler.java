@@ -28,6 +28,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.Filter;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 
@@ -49,6 +50,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.channel.ChannelHandler.Sharable;
 
 /*
  * Netty handler that integrates with the {@link HostRestrictingAuthorizationFilter}.  If
@@ -57,6 +59,7 @@ import io.netty.util.ReferenceCountUtil;
  * handler drops the request and sends an HTTP 403 response.
  */
 @InterfaceAudience.Private
+@Sharable
 final class HostRestrictingAuthorizationFilterHandler
     extends SimpleChannelInboundHandler<HttpRequest> {
 
@@ -88,20 +91,30 @@ final class HostRestrictingAuthorizationFilterHandler
    */
   public HostRestrictingAuthorizationFilterHandler() {
     Configuration conf = new Configuration();
-    this.hostRestrictingAuthorizationFilter = createFilter(conf);
+    this.hostRestrictingAuthorizationFilter = (HostRestrictingAuthorizationFilter) initializeState(conf);
   }
   
   /*
-   * Creates the {@link RestCsrfPreventionFilter} for the DataNode.  This method
-   * takes care of configuration and implementing just enough of the servlet API
-   * and related interfaces so that the DataNode can get a fully initialized
+   * Creates a new HostRestrictingAuthorizationFilterHandler.  There will be a new
+   * instance created for each new Netty channel/pipeline serving a new request.
+   * To prevent the cost of repeated initialization of the filter, one
+   * should pass in a pre-built, fully initialized filter instance.
+   */
+  public HostRestrictingAuthorizationFilterHandler(Configuration conf, HostRestrictingAuthorizationFilter filter) {
+    this.hostRestrictingAuthorizationFilter = filter;
+  }
+  
+  /*
+   * Creates a {@link HostRestrictingAuthorizationFilter} for the {@DatanodeHttpServer}.
+   * This method takes care of configuration and implementing just enough of the
+   * servlet API and related interfaces so that the DataNode can get a fully initialized
    * instance of the filter.
    *
    * @param conf configuration to read
    * @return initialized filter, or null if CSRF protection not enabled
    * @throws IllegalStateException if filter fails initialization
    */
-  public static HostRestrictingAuthorizationFilter createFilter(Configuration conf) {
+  public static Filter initializeState(Configuration conf) {
 	String confName = HostRestrictingAuthorizationFilter.HDFS_CONFIG_PREFIX +
 	                   HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG;
 	String confValue = conf.get(confName);
@@ -117,7 +130,7 @@ final class HostRestrictingAuthorizationFilterHandler
 	   throw new IllegalStateException(
 	     "Failed to initialize HostRestrictingAuthorizationFilter.", e);
 	}
-	return hostRestrictingAuthorizationFilter;
+	return (Filter) hostRestrictingAuthorizationFilter;
   }
   
   @Override

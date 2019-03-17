@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
 
 public class HostRestrictingAuthorizationFilter implements Filter {
   private Logger LOG = LoggerFactory.getLogger(HostRestrictingAuthorizationFilter.class);
-  private Map<String, ArrayList<Rule>> RULEMAP = null;
+  private  final Map<String, ArrayList<Rule>> RULEMAP = new HashMap<String, ArrayList<Rule>>();
   public static final String HDFS_CONFIG_PREFIX = "dfs.web.authentication.";
   public static final String RESTRICTION_CONFIG = "host.allow.rules";
   // A Java Predicate for query string parameters on which to filter requests
@@ -142,13 +142,10 @@ public class HostRestrictingAuthorizationFilter implements Filter {
 
   @Override
   public void destroy() {
-    RULEMAP = null;
   }
 
   @Override
   public void init(FilterConfig config) throws ServletException {
-    HashMap<String, String> overrideConfigs = new HashMap<String, String>();
-
     // Process dropbox rules
     String dropboxRules = config.getInitParameter(RESTRICTION_CONFIG);
     loadRuleMap(dropboxRules);
@@ -165,7 +162,6 @@ public class HostRestrictingAuthorizationFilter implements Filter {
    * </ul>
    */
   private void loadRuleMap(String ruleString) throws IllegalArgumentException{
-    RULEMAP = new HashMap<String, ArrayList<Rule>>();
 	if(ruleString == null || ruleString.equals("")) {
       LOG.debug("Got no rules - will disallow anyone access");
     } else {

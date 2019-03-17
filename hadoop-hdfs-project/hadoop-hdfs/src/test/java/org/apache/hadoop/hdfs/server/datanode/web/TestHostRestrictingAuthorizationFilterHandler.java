@@ -132,7 +132,7 @@ public class TestHostRestrictingAuthorizationFilterHandler {
   public void testMultipleAcceptedGETsOneChannel() throws Exception {
 	Configuration conf = new Configuration();
     conf.set(CONFNAME, "*,*,/allowed");
-	HostRestrictingAuthorizationFilter filter = HostRestrictingAuthorizationFilterHandler.createFilter(conf);
+	HostRestrictingAuthorizationFilter filter = (HostRestrictingAuthorizationFilter) HostRestrictingAuthorizationFilterHandler.initializeState(conf);
 	EmbeddedChannel channel = new CustomEmbeddedChannel("127.0.0.1", 1006, new HostRestrictingAuthorizationFilterHandler(filter));
 	FullHttpRequest allowedHttpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
                                                                     HttpMethod.GET,
@@ -155,7 +155,7 @@ public class TestHostRestrictingAuthorizationFilterHandler {
   public void testMultipleChannels() throws Exception {
 	Configuration conf = new Configuration();
     conf.set(CONFNAME, "*,*,/allowed");
-	HostRestrictingAuthorizationFilter filter = HostRestrictingAuthorizationFilterHandler.createFilter(conf);
+	HostRestrictingAuthorizationFilter filter = (HostRestrictingAuthorizationFilter) HostRestrictingAuthorizationFilterHandler.initializeState(conf);
 	EmbeddedChannel channel1 = new CustomEmbeddedChannel("127.0.0.1", 1006, new HostRestrictingAuthorizationFilterHandler(filter));
 	EmbeddedChannel channel2 = new CustomEmbeddedChannel("127.0.0.2", 1006, new HostRestrictingAuthorizationFilterHandler(filter));
 	EmbeddedChannel channel3 = new CustomEmbeddedChannel("127.0.0.3", 1006, new HostRestrictingAuthorizationFilterHandler(filter));
