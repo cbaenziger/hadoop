@@ -25,25 +25,23 @@ import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_WEBHDFS_RES
 import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_WEBHDFS_REST_CSRF_ENABLED_KEY;
 
 import java.util.Map;
+
 import javax.servlet.ServletException;
+
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.http.RestCsrfPreventionFilter;
+import org.apache.hadoop.security.http.RestCsrfPreventionFilter.HttpInteraction;
+import org.slf4j.Logger;
+
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.ReferenceCountUtil;
-
-import org.slf4j.Logger;
-
-import com.sun.tools.classfile.Dependency.Filter;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.security.http.RestCsrfPreventionFilter;
-import org.apache.hadoop.security.http.RestCsrfPreventionFilter.HttpInteraction;
-import io.netty.channel.ChannelHandler.Sharable;
 
 
 /**

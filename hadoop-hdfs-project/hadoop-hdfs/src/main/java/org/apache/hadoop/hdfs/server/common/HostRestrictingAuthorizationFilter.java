@@ -17,45 +17,36 @@
  */
 package org.apache.hadoop.hdfs.server.common;
 
-import javax.servlet.ServletException;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.net.util.SubnetUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
-import org.apache.hadoop.hdfs.web.AuthFilter;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
-import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.apache.hadoop.security.token.Token;
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.lang.IllegalArgumentException;
-import java.lang.Iterable;
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.function.BiFunction;
-import java.util.List;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.function.Predicate;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import org.apache.commons.net.util.SubnetUtils;
-import org.apache.commons.io.FilenameUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

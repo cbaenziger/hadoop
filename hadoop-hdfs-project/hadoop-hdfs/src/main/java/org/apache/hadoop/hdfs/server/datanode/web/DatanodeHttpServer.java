@@ -18,11 +18,9 @@
 package org.apache.hadoop.hdfs.server.datanode.web;
 
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.servlet.Filter;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
 
@@ -60,7 +58,6 @@ import org.apache.hadoop.http.HttpServer2;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.security.ssl.SSLFactory;
-import org.apache.hadoop.util.ReflectionUtils;
 
 import java.io.Closeable;
 import java.io.IOException;

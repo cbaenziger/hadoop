@@ -28,7 +28,6 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.Filter;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 
@@ -43,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableMap;
 
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultHttpResponse;
@@ -50,7 +50,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.channel.ChannelHandler.Sharable;
 
 /*
  * Netty handler that integrates with the {@link HostRestrictingAuthorizationFilter}.  If

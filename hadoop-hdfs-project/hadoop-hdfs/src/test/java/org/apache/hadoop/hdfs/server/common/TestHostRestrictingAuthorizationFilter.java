@@ -17,14 +17,7 @@
  */
 package org.apache.hadoop.hdfs.server.common;
 
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-
 import java.io.IOException;
-import java.lang.StringBuffer;
-import java.util.Arrays;
-import java.util.Vector;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -40,12 +33,12 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
+import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
-import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
 
 public class TestHostRestrictingAuthorizationFilter {
   private Logger log = LoggerFactory.getLogger(TestHostRestrictingAuthorizationFilter.class);

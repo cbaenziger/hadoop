@@ -17,73 +17,35 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.web;
 
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
 
-import java.io.IOException;
-import java.lang.StringBuffer;
-import java.util.Arrays;
-import java.util.Vector;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import com.google.common.net.InetAddresses;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpRequestDecoder;
-import io.netty.handler.codec.http.HttpResponseEncoder;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.channel.embedded.EmbeddedChannel;
-import org.apache.hadoop.hdfs.server.datanode.web.webhdfs.WebHdfsHandler;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.handler.codec.http.QueryStringDecoder;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.HostRestrictingAuthorizationFilter;
-
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponseStatus ;
-
+import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.hadoop.hdfs.server.datanode.web.HostRestrictingAuthorizationFilterHandler;
-import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
-import org.apache.hadoop.conf.Configuration;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus ;
+import io.netty.handler.codec.http.HttpVersion;
 
 public class TestHostRestrictingAuthorizationFilterHandler {
 	
   final String CONFNAME = HostRestrictingAuthorizationFilter.HDFS_CONFIG_PREFIX +
 	                      HostRestrictingAuthorizationFilter.RESTRICTION_CONFIG;	
 	
-  private Logger log = LoggerFactory.getLogger(TestHostRestrictingAuthorizationFilterHandler.class);
+  private Logger LOG = LoggerFactory.getLogger(TestHostRestrictingAuthorizationFilterHandler.class);
   
   /*
    * Custom channel implementation which allows for mocking a client's remote
