@@ -191,9 +191,6 @@ public class HostRestrictingAuthorizationFilter implements Filter {
             }
         };
         RULEMAP.merge(split[user], arrayListRule, arrayListMerge);
-        //XXX ArrayList<Rule> ruleList = RULEMAP.getOrDefault(user, new ArrayList<Rule>() {});
-        //ruleList.add(rule);
-        //RULEMAP.put(user, ruleList);
       }
     }
   }
