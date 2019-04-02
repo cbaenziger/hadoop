@@ -253,9 +253,9 @@ public class DatanodeHttpServer implements Closeable {
       LOG.debug("Loading filter handler {}", classes[i].getName());
       try {
     	Method initializeState = classes[i].getMethod("initializeState", Configuration.class);
-        Object state = handlerState.getOrDefault(classes[i], initializeState.invoke(null, conf));
         Constructor constructor = classes[i].getConstructor(initializeState.getReturnType());
-        handlers[i] = (ChannelHandler) constructor.newInstance(state);
+        LOG.error("XXX {}", classes[i]);
+        handlers[i] = (ChannelHandler) constructor.newInstance(handlerState.getOrDefault(classes[i], initializeState.invoke(null, conf)));
       } catch (NoSuchMethodException|InvocationTargetException|IllegalAccessException|InstantiationException|IllegalArgumentException e) {
     	LOG.error("Failed to initialize handler {}", classes[i].toString());
     	throw new RuntimeException(e);

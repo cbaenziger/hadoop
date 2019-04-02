@@ -31,6 +31,7 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -59,7 +60,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
   public static final Predicate<String> restrictedOperations = qStr -> (qStr.trim().equalsIgnoreCase("op=OPEN") ||
                                                                         qStr.trim().equalsIgnoreCase("op=GETDELEGATIONTOKEN"));
 
-  private class Rule {
+  private static class Rule {
     private final SubnetUtils.SubnetInfo subnet;
     private final String path;
 
@@ -108,10 +109,10 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     
     List<Rule> userRules = ((userRules = RULEMAP.get(user)) != null) ? userRules : new ArrayList<Rule>();
     List<Rule> anyRules = ((anyRules = RULEMAP.get("*")) != null) ? anyRules : new ArrayList<Rule>();
-    userRules.addAll(anyRules);
 
-    if(userRules != null) {
-      for(Rule rule : userRules) {
+    if(userRules != null || anyRules != null) {
+      Rule[] rules = (Rule[]) Stream.of((Rule[])userRules.toArray(), (Rule[])anyRules.toArray()).toArray();
+      for(Rule rule : rules) {
     	SubnetUtils.SubnetInfo subnet = rule.getSubnet();
     	String rulePath = rule.getPath();
         LOG.trace("Evaluating rule, subnet: {}, path: {}",
