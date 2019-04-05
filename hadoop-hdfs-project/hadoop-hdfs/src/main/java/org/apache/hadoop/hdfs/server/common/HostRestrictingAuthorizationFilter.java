@@ -23,11 +23,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -111,7 +113,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     List<Rule> anyRules = ((anyRules = RULEMAP.get("*")) != null) ? anyRules : new ArrayList<Rule>();
 
     if(userRules != null || anyRules != null) {
-      Rule[] rules = (Rule[]) Stream.of((Rule[])userRules.toArray(), (Rule[])anyRules.toArray()).toArray();
+      List<Rule> rules = Stream.of(userRules, anyRules).flatMap(l -> l.stream()).collect(Collectors.toList());
       for(Rule rule : rules) {
     	SubnetUtils.SubnetInfo subnet = rule.getSubnet();
     	String rulePath = rule.getPath();
