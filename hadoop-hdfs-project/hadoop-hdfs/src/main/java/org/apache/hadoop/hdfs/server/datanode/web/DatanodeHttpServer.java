@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,18 +17,17 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.web;
 
-import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_WEBHDFS_REST_CSRF_ENABLED_DEFAULT;
-import static org.apache.hadoop.hdfs.client.HdfsClientConfigKeys.DFS_WEBHDFS_REST_CSRF_ENABLED_KEY;
-
 import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 
 import io.netty.bootstrap.ChannelFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -40,6 +39,9 @@ import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +57,6 @@ import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.http.HttpServer2;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.authorize.AccessControlList;
-import org.apache.hadoop.security.http.RestCsrfPreventionFilter;
 import org.apache.hadoop.security.ssl.SSLFactory;
 
 import java.io.Closeable;
@@ -84,7 +85,7 @@ public class DatanodeHttpServer implements Closeable {
   private final ServerBootstrap httpsServer;
   private final Configuration conf;
   private final Configuration confForCreate;
-  private final RestCsrfPreventionFilter restCsrfPreventionFilter;
+  private static final ConcurrentHashMap<Class<?>, Object> handlerState = new ConcurrentHashMap<Class<?>, Object>() {};
   private InetSocketAddress httpAddress;
   private InetSocketAddress httpsAddress;
   static final Logger LOG = LoggerFactory.getLogger(DatanodeHttpServer.class);
@@ -100,7 +101,6 @@ public class DatanodeHttpServer implements Closeable {
       final DataNode datanode,
       final ServerSocketChannel externalHttpChannel)
     throws IOException {
-    this.restCsrfPreventionFilter = createRestCsrfPreventionFilter(conf);
     this.conf = conf;
 
     Configuration confForInfoServer = new Configuration(conf);
@@ -148,6 +148,7 @@ public class DatanodeHttpServer implements Closeable {
     this.workerGroup = new NioEventLoopGroup();
     this.externalHttpChannel = externalHttpChannel;
     HttpConfig.Policy policy = DFSUtil.getHttpPolicy(conf);
+    final ChannelHandler[] handlers = getFilterHandlers(conf);
 
     if (policy.isHttpEnabled()) {
       this.httpServer = new ServerBootstrap().group(bossGroup, workerGroup)
@@ -157,9 +158,10 @@ public class DatanodeHttpServer implements Closeable {
           ChannelPipeline p = ch.pipeline();
           p.addLast(new HttpRequestDecoder(),
             new HttpResponseEncoder());
-          if (restCsrfPreventionFilter != null) {
-            p.addLast(new RestCsrfPreventionFilterHandler(
-                restCsrfPreventionFilter));
+          if (handlers != null) {
+            for (ChannelHandler c : handlers) {
+              p.addLast(c);
+            }
           }
           p.addLast(
               new ChunkedWriteHandler(),
@@ -214,9 +216,10 @@ public class DatanodeHttpServer implements Closeable {
                 new SslHandler(sslFactory.createSSLEngine()),
                 new HttpRequestDecoder(),
                 new HttpResponseEncoder());
-            if (restCsrfPreventionFilter != null) {
-              p.addLast(new RestCsrfPreventionFilterHandler(
-                  restCsrfPreventionFilter));
+            if (handlers != null) {
+              for (ChannelHandler c : handlers) {
+                p.addLast(c);
+              }
             }
             p.addLast(
                 new ChunkedWriteHandler(),
@@ -227,6 +230,37 @@ public class DatanodeHttpServer implements Closeable {
       this.httpsServer = null;
       this.sslFactory = null;
     }
+  }
+
+  /* Get an array of ChannelHandlers specified in the conf
+   * @param conf configuration to read and pass
+   * @return array of ChannelHandlers ready to be used
+   * @throws NoSuchMethodException if the handler does not implement a method initializeState(conf)
+   * @throws InvocationTargetException if the handler's initalizeState method raises an exception
+   */
+  private ChannelHandler[] getFilterHandlers(Configuration conf) {
+    if (conf == null) {
+      return null;
+    }
+
+    Class<?>[] classes = conf.getClasses(DFSConfigKeys.DFS_DATANODE_HTTPSERVER_USER_FILTER_HANDLERS);
+    if (classes == null) {
+      return null;
+    }
+
+    ChannelHandler[] handlers = new ChannelHandler[classes.length];
+    for(int i = 0; i < classes.length; i++) {
+      LOG.debug("Loading filter handler {}", classes[i].getName());
+      try {
+        Method initializeState = classes[i].getMethod("initializeState", Configuration.class);
+        Constructor constructor = classes[i].getConstructor(initializeState.getReturnType());
+        handlers[i] = (ChannelHandler) constructor.newInstance(handlerState.getOrDefault(classes[i], initializeState.invoke(null, conf)));
+      } catch (NoSuchMethodException|InvocationTargetException|IllegalAccessException|InstantiationException|IllegalArgumentException e) {
+        LOG.error("Failed to initialize handler {}", classes[i].toString());
+        throw new RuntimeException(e);
+      }
+    }
+    return(handlers);
   }
 
   public InetSocketAddress getHttpAddress() {
@@ -304,45 +338,18 @@ public class DatanodeHttpServer implements Closeable {
     return inetSocker.getHostString();
   }
 
-  /**
-   * Creates the {@link RestCsrfPreventionFilter} for the DataNode.  Since the
-   * DataNode HTTP server is not implemented in terms of the servlet API, it
-   * takes some extra effort to obtain an instance of the filter.  This method
-   * takes care of configuration and implementing just enough of the servlet API
-   * and related interfaces so that the DataNode can get a fully initialized
-   * instance of the filter.
-   *
-   * @param conf configuration to read
-   * @return initialized filter, or null if CSRF protection not enabled
+  /*
+   * Since the DataNode HTTP server is not implemented in terms of the servlet API, it
+   * takes some extra effort to obtain an instance of the filter.  This method provides
+   * a minimal {@link FilterConfig} implementation backed by a {@link Map}. Call this from
+   * your filter handler to initialize a servlet filter.
    */
-  private static RestCsrfPreventionFilter createRestCsrfPreventionFilter(
-      Configuration conf) {
-    if (!conf.getBoolean(DFS_WEBHDFS_REST_CSRF_ENABLED_KEY,
-        DFS_WEBHDFS_REST_CSRF_ENABLED_DEFAULT)) {
-      return null;
-    }
-    String restCsrfClassName = RestCsrfPreventionFilter.class.getName();
-    Map<String, String> restCsrfParams = RestCsrfPreventionFilter
-        .getFilterParams(conf, "dfs.webhdfs.rest-csrf.");
-    RestCsrfPreventionFilter filter = new RestCsrfPreventionFilter();
-    try {
-      filter.init(new MapBasedFilterConfig(restCsrfClassName, restCsrfParams));
-    } catch (ServletException e) {
-      throw new IllegalStateException(
-          "Failed to initialize RestCsrfPreventionFilter.", e);
-    }
-    return filter;
-  }
-
-  /**
-   * A minimal {@link FilterConfig} implementation backed by a {@link Map}.
-   */
-  private static final class MapBasedFilterConfig implements FilterConfig {
+  public static final class MapBasedFilterConfig implements FilterConfig {
 
     private final String filterName;
     private final Map<String, String> parameters;
 
-    /**
+    /*
      * Creates a new MapBasedFilterConfig.
      *
      * @param filterName filter name
@@ -374,10 +381,10 @@ public class DatanodeHttpServer implements Closeable {
       throw this.notImplemented();
     }
 
-    /**
+    /*
      * Creates an exception indicating that an interface method is not
-     * implemented.  These should never be seen in practice, because it is only
-     * used for methods that are not called by {@link RestCsrfPreventionFilter}.
+     * implemented. If you are building a handler it is possible you will
+     * need to make this interface more extensive.
      *
      * @return exception indicating method not implemented
      */
