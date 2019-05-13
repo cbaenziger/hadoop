@@ -271,7 +271,7 @@ public class DatanodeHttpServer implements Closeable {
         Method initializeState = classes[i].getDeclaredMethod("initializeState",
             Configuration.class);
         Constructor constructor =
-            classes[i].getConstructor(initializeState.getReturnType());
+            classes[i].getDeclaredConstructor(initializeState.getReturnType());
         handlers[i] = (ChannelHandler) constructor.newInstance(
             HANDLER_STATE.getOrDefault(classes[i],
             initializeState.invoke(null, configuration)));
