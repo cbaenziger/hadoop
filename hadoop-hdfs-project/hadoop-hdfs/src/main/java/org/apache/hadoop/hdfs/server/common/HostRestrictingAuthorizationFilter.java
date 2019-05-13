@@ -161,8 +161,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
     if (ruleString == null || ruleString.equals("")) {
       LOG.debug("Got no rules - will disallow anyone access");
     } else {
-      // value: user1,network/bits1,path_glob1|user2,network/bints2,
-      // path_glob2...
+      // value: user1,network/bits1,path_glob1|user2,network/bits2,path_glob2...
       Pattern comma_split = Pattern.compile(",");
       Pattern rule_split = Pattern.compile("\\||\n");
       // split all rule lines
@@ -171,8 +170,8 @@ public class HostRestrictingAuthorizationFilter implements Filter {
           .collect(Collectors.groupingBy(x -> x.length));
       // verify all rules have three parts
       if (!splits.keySet().equals(Collections.singleton(3))) {
-        // instead of re-joining, re-materialize lines which do not split
-        // correctly
+        // instead of re-joining parts, re-materialize lines which do not split
+        // correctly for the exception
         String bad_lines = rule_split.splitAsStream(ruleString)
             .filter(x -> comma_split.split(x, 3).length != 3)
             .collect(Collectors.joining("\n"));
@@ -359,8 +358,7 @@ public class HostRestrictingAuthorizationFilter implements Filter {
      * A class for holding dropbox filter rules
      *
      * @param subnet - the IPv4 subnet for which this rule is valid (pass
-     * null for
-     * any network location)
+     * null for any network location)
      * @param path - the HDFS path for which this rule is valid
      */
     Rule(SubnetUtils.SubnetInfo subnet, String path) {

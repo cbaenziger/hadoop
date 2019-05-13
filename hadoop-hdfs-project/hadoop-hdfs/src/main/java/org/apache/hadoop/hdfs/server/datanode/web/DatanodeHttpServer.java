@@ -270,15 +270,11 @@ public class DatanodeHttpServer implements Closeable {
       try {
         Method initializeState = classes[i].getMethod("initializeState",
             Configuration.class);
-        if (initializeState == null) {
-          LOG.warn("Got null handler state initialization function for {}", classes[i].toString());
-        } else {
-          Constructor constructor =
-              classes[i].getConstructor(initializeState.getReturnType());
-          handlers[i] = (ChannelHandler) constructor.newInstance(
-              HANDLER_STATE.getOrDefault(classes[i],
-              initializeState.invoke(null, configuration)));
-        }
+        Constructor constructor =
+            classes[i].getConstructor(initializeState.getReturnType());
+        handlers[i] = (ChannelHandler) constructor.newInstance(
+            HANDLER_STATE.getOrDefault(classes[i],
+            initializeState.invoke(null, configuration)));
       } catch (NoSuchMethodException | InvocationTargetException
           | IllegalAccessException | InstantiationException
           | IllegalArgumentException e) {

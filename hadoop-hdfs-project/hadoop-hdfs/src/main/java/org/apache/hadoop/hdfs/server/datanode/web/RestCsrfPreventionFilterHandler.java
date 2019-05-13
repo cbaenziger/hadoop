@@ -69,7 +69,7 @@ final class RestCsrfPreventionFilterHandler
    *
    * @param restCsrfPreventionFilter initialized filter
    */
-  RestCsrfPreventionFilterHandler(
+  public RestCsrfPreventionFilterHandler(
       RestCsrfPreventionFilter restCsrfPreventionFilter) {
     if(restCsrfPreventionFilter == null) {
       LOG.warn("Got null for restCsrfPreventionFilter - will not do any filtering.");
