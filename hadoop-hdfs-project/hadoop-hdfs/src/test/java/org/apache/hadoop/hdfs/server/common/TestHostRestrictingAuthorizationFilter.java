@@ -232,7 +232,7 @@ public class TestHostRestrictingAuthorizationFilter {
     log.error("XXX {}", response.getStatus());
     filter.destroy();
   }
-  
+
   private static class DummyFilterConfig implements FilterConfig {
     final Map<String, String> map;
 

@@ -135,7 +135,7 @@ public class TestHostRestrictingAuthorizationFilterHandler {
     assertTrue("Should successfully accept request, third time",
         channel3.writeInbound(allowedHttpRequest3));
   }
-  
+
   /*
    * Test accepting a GET request for the file checksum
    */
