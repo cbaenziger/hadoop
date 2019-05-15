@@ -320,7 +320,7 @@
   </property>
 
 <property>
-  <name>dfs.datanode.filter.handlers</name>
+  <name>dfs.datanode.httpserver.filter.handlers</name>
   <value>org.apache.hadoop.hdfs.server.datanode.web.RestCsrfPreventionFilterHandler</value>
   <description>Comma separated list of Netty servlet-style filter handlers to inject into the Datanode WebHDFS I/O path
   </description>

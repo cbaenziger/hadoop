@@ -259,7 +259,7 @@ public class DatanodeHttpServer implements Closeable {
 
     Class<?>[] classes =
         configuration.getClasses(
-            DFSConfigKeys.DFS_DATANODE_HTTPSERVER_USER_FILTER_HANDLERS);
+            DFSConfigKeys.DFS_DATANODE_HTTPSERVER_FILTER_HANDLERS);
     if (classes == null) {
       return null;
     }
