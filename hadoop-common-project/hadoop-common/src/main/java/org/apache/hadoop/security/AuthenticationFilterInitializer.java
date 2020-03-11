@@ -23,8 +23,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.http.FilterContainer;
 import org.apache.hadoop.http.FilterInitializer;
 import org.apache.hadoop.security.authentication.server.KerberosAuthenticationHandler;
+import org.apache.hadoop.jmx.JMXJsonServlet;
+import org.apache.hadoop.conf.ConfServlet;
+
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,6 +48,16 @@ import java.util.Map;
 public class AuthenticationFilterInitializer extends FilterInitializer {
 
   static final String PREFIX = "hadoop.http.authentication.";
+  // if telemetry servlets should be authenticated
+  public static final String TELEMETRY_AUTHENTICATED =
+      PREFIX + "authenticate_telemetry";
+  public static final boolean TELEMETRY_AUTHENTICATED_DEFAULT = true;
+  // telemetry servlet names
+  public static final String TELEMETRY_SERVLETS =
+      PREFIX + "telemetry_servlets";
+  // comma separated string of telemetry servlet names
+  public static final String TELEMETRY_SERVLETS_DEFAULT =
+      "stacks,jmx,conf";
 
   /**
    * Initializes hadoop-auth AuthenticationFilter.
@@ -58,9 +72,12 @@ public class AuthenticationFilterInitializer extends FilterInitializer {
   public void initFilter(FilterContainer container, Configuration conf) {
     Map<String, String> filterConfig = getFilterConfigMap(conf, PREFIX);
 
-    container.addFilter("authentication",
-                        AuthenticationFilter.class.getName(),
-                        filterConfig);
+    if (!conf.getBoolean(TELEMETRY_AUTHENTICATED, TELEMETRY_AUTHENTICATED_DEFAULT) &&
+       !(Arrays.asList(conf.getStrings(TELEMETRY_SERVLETS, TELEMETRY_SERVLETS_DEFAULT))).contains(((HttpServer2)container).getWebAppContext().getDisplayName())) {
+      container.addFilter("authentication",
+                          AuthenticationFilter.class.getName(),
+                          filterConfig);
+    }
   }
 
   public static Map<String, String> getFilterConfigMap(Configuration conf,
